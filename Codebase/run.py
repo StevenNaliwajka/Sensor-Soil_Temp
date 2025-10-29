@@ -1,7 +1,7 @@
 import serial
 import time
 
-from parse import parse_line
+from parse_line import parse_line
 
 # --- Configuration ---
 PORT = "/dev/ttyUSB0"
