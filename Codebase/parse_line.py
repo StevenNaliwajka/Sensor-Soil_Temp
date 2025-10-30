@@ -6,6 +6,8 @@ PATTERN = re.compile(
     r'Soil Temperature:\s*([\d.]+)\s*°C$'
 )
 
+#Set1:SMoist25.25:SMoistPerc2323:STemp232
+
 def parse_line(line: str):
     m = PATTERN.match(line.strip())
     if not m:
