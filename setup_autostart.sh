@@ -1,45 +1,52 @@
-#!/bin/bash
-# setup_autostart.sh
-# Configures systemd to run run.sh on boot
+#!/usr/bin/env bash
+# setup_autostart.sh — create and enable a systemd service for run.sh
 
-SERVICE_NAME="custom-startup"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RUN_SCRIPT="$SCRIPT_DIR/run.sh"
+SERVICE_NAME="moisture-temp-monitor"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RUN_SCRIPT="$PROJECT_DIR/run.sh"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+USER_NAME=$(logname)
 
-# Check for root
+# --- Safety checks ---
 if [ "$EUID" -ne 0 ]; then
   echo "Please run as root (e.g. sudo bash $0)"
   exit 1
 fi
 
-# Check if run.sh exists
 if [ ! -f "$RUN_SCRIPT" ]; then
-  echo "Error: run.sh not found in $SCRIPT_DIR"
+  echo "Error: run.sh not found at $RUN_SCRIPT"
   exit 1
 fi
 
-# Create systemd service file
+# --- Create service file ---
 cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=Run custom script at startup
-After=network.target
+Description=Run custom Sensor-Soil_Temp script at startup
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=$SCRIPT_DIR
-ExecStart=/bin/bash $RUN_SCRIPT
-Restart=always
-User=$(logname)
+User=$USER_NAME
+Group=$USER_NAME
+WorkingDirectory=$PROJECT_DIR
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/env bash $RUN_SCRIPT
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:$PROJECT_DIR/run.log
+StandardError=append:$PROJECT_DIR/run.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Reload systemd, enable and start service
+# --- Enable + start the service ---
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
-systemctl start "$SERVICE_NAME"
+systemctl restart "$SERVICE_NAME"
 
-echo "✅ Service '$SERVICE_NAME' created and started."
-echo "→ It will automatically run $RUN_SCRIPT on boot."
+echo "Service '$SERVICE_NAME' installed and started."
+echo "→ Logs will be stored in: $PROJECT_DIR/run.log"
+echo "→ Check status: sudo systemctl status $SERVICE_NAME"

@@ -1,27 +1,43 @@
 #!/usr/bin/env python3
-"""
-verify_line.py
-Checks whether a given input line matches the same pattern
-used in parse_line.py and returns True/False accordingly.
-"""
+# verify_line.py
+# Parse lines like: Set1:SMoist25.25:SMoistPerc2323:STemp232
+# and forward the numeric values to append_line.append_line(...)
 
-import sys
-from parse_line import parse_line
+import re
+from Codebase.append_line import append_line
 
-def verify_line(line: str) -> bool:
-    """Return True if line matches expected pattern, else False."""
-    return parse_line(line) is not None
+# Regex: label immediately followed by number, fields separated by ':'
+_PATTERN = re.compile(
+    r'^\s*'
+    r'Set(?P<set>\d+)'
+    r'\s*:\s*SMoist(?P<smoist>-?\d+(?:\.\d+)?)'
+    r'\s*:\s*SMoistPerc(?P<smoistperc>-?\d+(?:\.\d+)?)'
+    r'\s*:\s*STemp(?P<stemp>-?\d+(?:\.\d+)?)'
+    r'\s*$'
+)
 
-def main():
-    # If no args provided, read a single line from stdin
-    if len(sys.argv) > 1:
-        line = " ".join(sys.argv[1:])
-    else:
-        line = sys.stdin.readline().strip()
+def verify_line(line: str):
+    """
+    Parse the incoming line. On success:
+      - Calls append_line(set_num, s_moist, s_moist_perc, s_temp)
+      - Returns ((set_num, s_moist, s_moist_perc, s_temp), True)
 
-    is_valid = verify_line(line)
-    print("True" if is_valid else "False")
-    sys.exit(0 if is_valid else 1)
+    On parse failure:
+      - Prints a brief notice and returns (line, False)
+    """
+    m = _PATTERN.match(line)
+    if not m:
+        # You can comment this out if you’d rather be silent on bad lines
+        print(f"[verify_line] Reject (bad format): {line}")
+        return line, False
 
-if __name__ == "__main__":
-    main()
+    set_num = int(m.group('set'))
+    # Use float for generality; cast later if you prefer ints for perc/temp
+    s_moist = float(m.group('smoist'))
+    s_moist_perc = float(m.group('smoistperc'))
+    s_temp = float(m.group('stemp'))
+
+    # Hand off to your append function
+    append_line(set_num, s_moist, s_moist_perc, s_temp)
+
+    return (set_num, s_moist, s_moist_perc, s_temp), True
